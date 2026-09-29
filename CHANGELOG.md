@@ -42,6 +42,8 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/)
 
 ## [Unreleased]
 
+## [4.8.0] - 2026-09-29 — BMS cell telemetry, a brake-fluid warning, and multi-channel SoC/typing fixes
+
 ### Added
 - **Brake-fluid warning now surfaces as its own binary sensor where the car reports it (Vehicle Data
   Scout, #1592).** An Audi Q6 (PPE) ships the brake-fluid warning lamp as a raw FlexRay/ESC signal in
