@@ -48,6 +48,13 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/)
   its Data Act export. It's now decoded into a "Brake Fluid" problem binary sensor (on = warning
   active); cars that don't report the signal get no entity. Only the OFF state is confirmed so far, so
   the active decode is conservative (anything that isn't the OFF value reads as a warning).
+- **Battery cell-level telemetry for cars that report it (Vehicle Data Scout, #1622).** Some VW cars
+  ship raw battery-management (BMS) signals in their Data Act export. These now surface as diagnostic
+  sensors — highest/lowest cell voltage, battery coolant return temperature, battery capacity,
+  recuperated energy and pack voltage — and the cell-temperature extremes feed the existing HV battery
+  temperature (min/max) sensors. All are disabled by default and only created for cars that actually
+  report the signals; the raw module/cell index fields stay visible in diagnostics until their meaning
+  is documented.
 
 ### Fixed
 - **A combustion car with an empty data feed is now typed correctly (#1538, thanks @Latte9090).** A Golf
