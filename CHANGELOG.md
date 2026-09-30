@@ -43,6 +43,15 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/)
 ## [Unreleased]
 
 ### Added
+- **Climate target temperature now shows for portal-read cars (Vehicle Data Scout, #1624 and many more reports).**
+  The modern MEB EU Data Act export carries the set cabin temperature under its climatisation-settings block as a raw
+  bus value. It now feeds the existing target-temperature sensor for cars that only have the portal read, decoded from
+  that bus value (multiple reporters cross-confirmed the scaling). A brand-native or app-backend reading still wins
+  where one is present.
+- **The mirror-heating setting now fills for modern portal cars too (Vehicle Data Scout, #1637, thanks @pietervanhertum).**
+  The modern MEB export carries the mirror-heating enable under its climatisation-settings block; it was the one leaf in
+  that block without a modern alias (the climate zones already had theirs), so it now feeds the existing mirror-heating
+  sensor instead of re-filing on the Scout.
 - **Companion (ADB): optionally close the car app after each read (#1552, thanks @nekas123).** A new
   opt-in force-stops the car app once each poll finishes, so the next read relaunches it fresh instead
   of scraping a screen the app left cached. It's for devices where the app freezes its own values
