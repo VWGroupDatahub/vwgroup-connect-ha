@@ -42,6 +42,8 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/)
 
 ## [Unreleased]
 
+## [4.9.0] - 2026-10-01 — Portal climate target temperature, a deleted-car cleanup, and a VIN kept out of the repair id
+
 ### Added
 - **Climate target temperature now shows for portal-read cars (Vehicle Data Scout, #1624 and many more reports).**
   The modern MEB EU Data Act export carries the set cabin temperature under its climatisation-settings block as a raw
