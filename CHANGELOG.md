@@ -42,6 +42,13 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/)
 
 ## [Unreleased]
 
+### Added
+- **Companion (ADB): optionally close the car app after each read (#1552, thanks @nekas123).** A new
+  opt-in force-stops the car app once each poll finishes, so the next read relaunches it fresh instead
+  of scraping a screen the app left cached. It's for devices where the app freezes its own values
+  between reads; it's off by default (a cold relaunch is slower) and sits next to the existing companion
+  toggles in Configure. Reload after toggling.
+
 ### Fixed
 - **A car removed from your account is no longer polled forever (#1628, thanks @ekirchma).** The vehicle list was read
   from the account only at setup and the cache was never reconciled against it, so a deleted car kept getting polled
