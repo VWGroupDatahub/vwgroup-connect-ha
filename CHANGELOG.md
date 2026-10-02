@@ -42,6 +42,14 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/)
 
 ## [Unreleased]
 
+### Added
+- **The portal's own data-delivery trigger now has a sensor (Vehicle Data Scout, #1637 and 16 more reports).**
+  Twenty-two Scout reports landed in two days, across Volkswagen, VW Commercial, Audi and CUPRA, all for the same
+  leaf: the delivery trigger the EU Data Act snapshot carries about itself. It gets its own diagnostic sensor rather
+  than being folded into the existing report trigger — the official portal field catalogue documents those as two
+  different things with different value sets, so one sensor for both would have mixed two unrelated enums. Off by
+  default. A leaf nobody maps is re-reported on every single poll, which is how twenty-two issues happened.
+
 ### Fixed
 - **The volkswagen.de read channel no longer has to be re-added after every restart (#1659, thanks @Joassens).**
   On some accounts the silent session resume bounced straight back to the portal's own login page. That landing
