@@ -42,21 +42,8 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/)
 
 ## [Unreleased]
 
-### Changed
-- **The "portal has no vehicle data yet" warning now names the car it's about (#1656, thanks @kalwados).**
-  The warning is raised once per account and only mentioned the brand, so with two Volkswagens on one account there
-  was no way to tell which car was affected — and it really can be one and not the other. It now lists the cars that
-  are actually without data, with the VIN shortened to its last six characters, because people paste these warnings
-  into bug reports. With nothing known yet it falls back to the brand name, exactly as before.
-### Fixed
-- **An electric car whose feed has no state of charge no longer hides every EV entity (#1661, thanks @dasebi91).**
-  The integration decided a car was electric from its state of charge, electric range or charging state. The
-  reporter's ID.7 sends none of those three — but it does report a 218 Ah drive battery at 355 V with per-cell
-  voltages and pack temperatures, and it was still treated as not-electric, so the whole EV entity set stayed hidden.
-  That is what it looked like as "missing battery SoC": the sensor wasn't empty, the car wasn't recognised as electric
-  at all. A drive battery above 60 V (the legal high-voltage threshold, so a 48 V mild hybrid can't trip it) now
-  counts as evidence on its own. It only says "this car has a drive battery" — it deliberately doesn't claim the car
-  has no engine, because a pack voltage doesn't prove that.
+## [4.10.0b1] - 2026-10-02 — An EV that was not recognised as one, the data the portal hid in blobs, and a channel that needed re-adding after every restart
+
 ### Added
 - **Sixteen more HV, thermal and climate readings for cars on the raw-signal portal feed (#1661, thanks @dasebi91).**
   The same feed we already read cell voltages from, but this car sends a different signal set from different control
@@ -80,13 +67,29 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/)
   different things with different value sets, so one sensor for both would have mixed two unrelated enums. Off by
   default. A leaf nobody maps is re-reported on every single poll, which is how twenty-two issues happened.
 
+### Changed
+- **The "portal has no vehicle data yet" warning now names the car it's about (#1656, thanks @kalwados).**
+  The warning is raised once per account and only mentioned the brand, so with two Volkswagens on one account there
+  was no way to tell which car was affected — and it really can be one and not the other. It now lists the cars that
+  are actually without data, with the VIN shortened to its last six characters, because people paste these warnings
+  into bug reports. With nothing known yet it falls back to the brand name, exactly as before.
+
 ### Fixed
+- **An electric car whose feed has no state of charge no longer hides every EV entity (#1661, thanks @dasebi91).**
+  The integration decided a car was electric from its state of charge, electric range or charging state. The
+  reporter's ID.7 sends none of those three — but it does report a 218 Ah drive battery at 355 V with per-cell
+  voltages and pack temperatures, and it was still treated as not-electric, so the whole EV entity set stayed hidden.
+  That is what it looked like as "missing battery SoC": the sensor wasn't empty, the car wasn't recognised as electric
+  at all. A drive battery above 60 V (the legal high-voltage threshold, so a 48 V mild hybrid can't trip it) now
+  counts as evidence on its own. It only says "this car has a drive battery" — it deliberately doesn't claim the car
+  has no engine, because a pack voltage doesn't prove that.
 - **The volkswagen.de read channel no longer has to be re-added after every restart (#1659, thanks @Joassens).**
   On some accounts the silent session resume bounced straight back to the portal's own login page. That landing
   wasn't recognised as a dead session, so the channel reported "could not silently resume" and never tried the
   stored-password re-login some users had switched on — it just told them to re-add the channel, every single
   restart. It's recognised now: the opt-in re-login gets its chance, and if it isn't on, the message says the
   session expired instead of something opaque.
+
 ## [4.9.0] - 2026-10-01 — Portal climate target temperature, a deleted-car cleanup, and a VIN kept out of the repair id
 
 ### Added
