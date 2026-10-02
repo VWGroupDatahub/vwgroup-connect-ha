@@ -42,29 +42,7 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/)
 
 ## [Unreleased]
 
-### Fixed
-- **A frozen timestamp from the car no longer makes fresh data look days old (#1688, thanks @Datendieb).**
-  His portal kept delivering all afternoon — odometer and charge level visibly moving — while the timestamp the car
-  reports about itself stayed five days old. The "data is stale" warning and problem sensor were built on that
-  timestamp alone, so they claimed 105 hours on data that was minutes old. A reading that has actually changed since
-  the last poll now proves the data is live and overrides the timestamp. Deliberately one-directional: unchanged
-  readings still prove nothing, because a car parked for days repeats them and a genuinely dead feed must still be
-  reported. He also spotted that "minutes since last snapshot" contradicted the snapshot time right next to it —
-  that field was measuring the car's timestamp instead of the snapshot, and now measures the snapshot.
-- **The "no vehicle data yet" warning really does name the car now (#1656, thanks @kalwados).**
-  The first attempt at this shipped in the last beta and still showed only the brand. The warning is raised from the
-  portal's own state, which is independent of any per-car flag — and the flag the first version filtered on isn't
-  reliably set, so on exactly the accounts this warning fires for, nothing matched and it fell back to the brand.
-  It now prefers the car that is actually flagged (useful when one car on the account works and another doesn't) and
-  otherwise names every car on the account, since the warning means the account's portal is delivering nothing.
-### Security
-- **The Vehicle Data Scout can no longer post your VIN into a public issue (#1690).**
-  One portal field carries a credential blob with the car's VIN encoded inside it. The Scout masks VINs by looking
-  for them as readable text, so it never saw this one, and the length limit that follows happened to leave the VIN
-  inside the part that got posted. It had leaked five times — four of those were cleaned up by hand afterwards
-  without the masking itself being fixed. Encoded identifiers are now detected and the whole blob is replaced before
-  anything is written out; what remains says only what kind of value was removed and how long it was. Already-posted
-  issues were redacted. Nothing about ordinary readings changes.
+## [4.10.0b2] - 2026-10-03 — A VIN the Scout should never have printed, two repairs that told the truth, and a charge level MBB hybrids never had
 
 ### Added
 - **Plug-in hybrids on the volkswagen.de channel finally get a battery charge level (#1313, thanks @realynot and @fschulte2812).**
@@ -80,6 +58,7 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/)
   been left unmapped because its meaning was a guess; VW's own field catalogue documents the values, so there was
   nothing left to guess. Two long-standing neighbours of it (the care score and its threshold) were also quietly
   re-reporting themselves to the Scout on every poll for cars that send them nested — that's fixed in passing.
+
 ### Changed
 - **A read refused for a missing subscription now says so (#1659, thanks @Joassens).**
   His maintenance read came back as `4007 connectivityLicenseInactive`, which is precise and tells you nothing about
@@ -88,7 +67,22 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/)
   log and in the error. The two cases are worded differently on purpose: an expired subscription needs paying for, an
   account that isn't enrolled needs enrolling — and a refusal we haven't understood still says nothing rather than
   guessing.
+
 ### Fixed
+- **A frozen timestamp from the car no longer makes fresh data look days old (#1688, thanks @Datendieb).**
+  His portal kept delivering all afternoon — odometer and charge level visibly moving — while the timestamp the car
+  reports about itself stayed five days old. The "data is stale" warning and problem sensor were built on that
+  timestamp alone, so they claimed 105 hours on data that was minutes old. A reading that has actually changed since
+  the last poll now proves the data is live and overrides the timestamp. Deliberately one-directional: unchanged
+  readings still prove nothing, because a car parked for days repeats them and a genuinely dead feed must still be
+  reported. He also spotted that "minutes since last snapshot" contradicted the snapshot time right next to it —
+  that field was measuring the car's timestamp instead of the snapshot, and now measures the snapshot.
+- **The "no vehicle data yet" warning really does name the car now (#1656, thanks @kalwados).**
+  The first attempt at this shipped in the last beta and still showed only the brand. The warning is raised from the
+  portal's own state, which is independent of any per-car flag — and the flag the first version filtered on isn't
+  reliably set, so on exactly the accounts this warning fires for, nothing matched and it fell back to the brand.
+  It now prefers the car that is actually flagged (useful when one car on the account works and another doesn't) and
+  otherwise names every car on the account, since the warning means the account's portal is delivering nothing.
 - **The volkswagen.de channel no longer tells you your password is wrong when it isn't (#1679, thanks @Fishermanjb; #1313, thanks @realynot).**
   Both reporters had the channel refuse them with "email address or password incorrect" while the very same
   credentials signed in fine on volkswagen.de and even reached the e-mail-code step. The login itself was careful
@@ -106,6 +100,15 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/)
   was hit. It now sends your Home Assistant language and country, which also
   matches what the app does. Nothing is invented — a country the integration
   doesn't know is simply left out rather than guessed.
+
+### Security
+- **The Vehicle Data Scout can no longer post your VIN into a public issue (#1690).**
+  One portal field carries a credential blob with the car's VIN encoded inside it. The Scout masks VINs by looking
+  for them as readable text, so it never saw this one, and the length limit that follows happened to leave the VIN
+  inside the part that got posted. It had leaked five times — four of those were cleaned up by hand afterwards
+  without the masking itself being fixed. Encoded identifiers are now detected and the whole blob is replaced before
+  anything is written out; what remains says only what kind of value was removed and how long it was. Already-posted
+  issues were redacted. Nothing about ordinary readings changes.
 
 ## [4.10.0b1] - 2026-10-02 — An EV that was not recognised as one, the data the portal hid in blobs, and a channel that needed re-adding after every restart
 
