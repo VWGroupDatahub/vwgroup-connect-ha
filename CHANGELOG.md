@@ -42,6 +42,8 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/)
 
 ## [Unreleased]
 
+## [4.10.0b3] - 2026-10-03 — The wall that had broken volkswagen.de for everyone, a distance nobody could name, and four readings that were 1.6x too high
+
 ### Added
 - **The distance since your last fill-up is now a sensor (Vehicle Data Scout, #1655 and nine more reports — thanks @user222008, @iansyder8, @DanyZdog93, @Nicohlav, @Neurupp2, @4ndy-bo and @checkner89).**
   Ten reports from seven accounts kept naming the same unmapped value, and it is in none of the 6610 entries of
