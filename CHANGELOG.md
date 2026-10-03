@@ -43,17 +43,22 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/)
 ## [Unreleased]
 
 ### Added
-- **The third trip-computer memory is now a distance sensor (Vehicle Data Scout, #1655 and nine more reports — thanks @user222008, @iansyder8, @DanyZdog93, @Nicohlav, @Neurupp2, @4ndy-bo and @checkner89).**
-  Ten reports from seven accounts kept naming the same unmapped leaf, and it is in none of the 6610 entries of the official portal field
-  catalogue — so for a week it was held rather than given a guessed unit, because a distance, a service counter and a
-  plain index would each need a different sensor. Two things settled it. One reporter happened to send the same car
-  twice on one day, five and a half hours apart, and the value had grown by sixteen — so it counts up as you drive,
-  which rules out an index or a countdown. And the catalogue does document its two siblings under the identical
-  naming scheme: the car's own short-term and long-term trip memories, both in kilometres. So this is the third of
-  those memories, and it reads in kilometres with no conversion. Diagnostic, off by default. It deliberately does not
-  feed the odometer: the two are different quantities, and one open question remains — whether this memory can be
-  reset in the car. That answer is also why the sensor records the value without claiming a long-term total; a total
-  would quietly double-count distance the odometer already carries if the memory ever gets cleared.
+- **The distance since your last fill-up is now a sensor (Vehicle Data Scout, #1655 and nine more reports — thanks @user222008, @iansyder8, @DanyZdog93, @Nicohlav, @Neurupp2, @4ndy-bo and @checkner89).**
+  Ten reports from seven accounts kept naming the same unmapped value, and it is in none of the 6610 entries of
+  the manufacturer's own field catalogue, so for a week it was held rather than given a guessed meaning. Three
+  things settled it. @iansyder8 happened to report the same car twice in one day, five and a half hours apart,
+  with the value sixteen higher — so it counts up as you drive. The catalogue documents its two siblings as the
+  car's short-term and long-term trip memories, both in kilometres, which fixes the unit. And @DanyZdog93 pinned
+  the meaning from his dashboard: it is the counter with the fuel-pump icon, resetting when he refuels rather
+  than at the start or end of a trip. The manufacturer's own app agrees — it has a whole screen for this memory,
+  labelled "From refuelling" and described as "all journeys between two fill-ups" (on a hybrid, "from charging
+  or refuelling").
+  Diagnostic, off by default, and deliberately not wired to the odometer: the two are different quantities, and
+  filling the odometer from a counter that resets would be a confident wrong answer on every car that has reset
+  it. For the same reason the sensor records the value without claiming a long-term total. One thing is still
+  open and asked in #1578: on a pure electric car nothing seems to reset it, so there the name is the closest
+  honest label rather than the whole truth.
+
 - **The climatisation duration the portal sends is visible instead of swallowed (Vehicle Data Scout, #1689 and thirteen more reports).**
   Twelve accounts reported this leaf, and the catalogue does not document it either. "Duration" could be how long a
   climatisation run lasted, how long one was configured for, or how long is left — three different sensors with three
@@ -73,6 +78,19 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/)
   if it reached the last-seen anchor, the freshness check itself raised. Non-finite values are now dropped where they
   are converted, like any other unusable reading, and everything sent beside them survives. Found by a test written
   for the duration sensor above.
+- **A negative reading from the car's trip computer no longer reaches a distance or duration sensor.**
+  Three of the trip-computer values already ignored a negative reading; their twenty-odd siblings did not, so a
+  negative could land on a sensor where it makes no sense — a trip distance below zero, a negative travel time, a
+  negative average speed — and from there into long-term statistics, where it stays. Sixteen of those values now
+  ignore a negative reading, and a plain zero still counts as real (a trip that was just reset genuinely reads zero).
+  Decided value by value rather than by family name, because this family is mixed in two directions. The service and
+  oil countdowns are *documented* as going negative: once you pass the interval, the manufacturer sends how far you
+  have driven since, as a negative number, and the integration already turns that into a positive "overdue by" —
+  a blanket rule would have replaced a real overdue service with no reading at all. In the other direction, the
+  average monthly distance carries the maintenance prefix but is a distance you drove, so it does get the guard.
+  Left alone on purpose: electric, auxiliary and recuperation averages, which are net-energy figures — a downhill
+  trip can recover more than it uses, so a negative there may be the truth.
+
 - **Cars set to miles no longer get a 1.6x service interval, oil interval, monthly average or last-trip distance.**
   A UK or US car's portal feed says which unit the car *displays*, and the integration used to convert every distance
   it had mapped whenever it saw "miles". But only some of the portal's distances actually follow the car's display:
