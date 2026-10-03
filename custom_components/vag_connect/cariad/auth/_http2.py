@@ -99,10 +99,17 @@ class _H2Response:
         self.history = history
         self.headers = resp.headers
 
-    async def text(self, errors: str = "strict") -> str:
-        """Decoded body. ``errors`` mirrors aiohttp's keyword; httpx decodes
-        with its own charset detection, so a replacement pass is only needed
-        when the caller asked to tolerate junk."""
+    async def text(
+        self, encoding: str | None = None, errors: str = "strict"
+    ) -> str:
+        """Decoded body, with aiohttp's signature.
+
+        httpx does its own charset detection, so ``encoding`` is only honoured
+        when the caller forces one; ``errors`` mirrors aiohttp so a caller that
+        asked to tolerate junk still gets a string rather than an exception.
+        """
+        if encoding:
+            return self._resp.content.decode(encoding, errors=errors)
         try:
             return self._resp.text
         except UnicodeDecodeError:
@@ -110,7 +117,35 @@ class _H2Response:
                 raise
             return self._resp.content.decode("utf-8", errors=errors)
 
-    async def json(self) -> Any:
+    async def json(
+        self,
+        content_type: str | None = None,
+        *,
+        encoding: str | None = None,
+        loads: Any = None,
+        **_kw: Any,
+    ) -> Any:
+        """Parsed body, with aiohttp's signature — including ``content_type``.
+
+        v4.10.0b4 (#1659 @Joassens, and @fschulte2812 on the PR) — the first
+        version of this shim took NO arguments, while the connector calls
+        ``resp.json(content_type=None)`` the aiohttp way. That raised a
+        TypeError inside ``_get_json``, which is swallowed as "skipped
+        (TypeError)" by the enrichment paths: the relations preflight and the
+        platform probe died, MBB cars fell back to the wrong gdc, every live
+        read answered 412, and the whole volkswagen.de channel went
+        unavailable in b3 — while the login itself worked, which is why the
+        transport looked fine.
+        ``content_type`` is accepted and ignored on purpose: aiohttp uses it to
+        RELAX its own content-type assertion, and httpx never asserts one.
+
+        An empty body returns ``None``, which is what aiohttp does; httpx would
+        raise a JSONDecodeError and the caller has no handler for it.
+        """
+        if not self._resp.content.strip():
+            return None
+        if loads is not None:
+            return loads(await self.text(encoding=encoding))
         return self._resp.json()
 
 

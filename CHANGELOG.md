@@ -42,6 +42,22 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/)
 
 ## [Unreleased]
 
+## [4.10.0b4] - 2026-10-04 — A channel that logged in and then said nothing
+
+### Fixed
+- **The volkswagen.de channel delivers data again (regression in 4.10.0b3 — thanks @fschulte2812 and @Joassens).**
+  b3 gave that channel the HTTP/2 transport it needs, and the login worked — which is exactly why the rest looked
+  fine. But every data read failed: the new response object did not accept one of the arguments the reading code
+  passes it, which raised an error that the enrichment steps quietly skip over. The visible result was a channel
+  that logged in happily and then reported nothing: the platform lookup died first, plug-in hybrids fell back to the
+  wrong backend, every live read was refused, and all the sensors from this channel went unavailable. Both reporters
+  found it within the hour, ran the same one-line fix on their own cars, and got the whole channel back — drive
+  battery, electric range, fuel, combustion range, oil level, service interval. That fix is in here, along with
+  returning nothing rather than an error for an empty response body, which is what the old library did.
+  The test that was supposed to prevent exactly this checked which members the response has, not which arguments
+  they accept. It now binds every real call site against the real signature, so the next mismatch fails in CI
+  instead of in someone's house.
+
 ## [4.10.0b3] - 2026-10-03 — The wall that had broken volkswagen.de for everyone, a distance nobody could name, and four readings that were 1.6x too high
 
 ### Added
