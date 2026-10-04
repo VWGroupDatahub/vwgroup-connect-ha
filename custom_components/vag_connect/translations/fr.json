@@ -2210,7 +2210,14 @@
     },
     "supplementary_reauth": {
       "title": "Le canal de lecture Volkswagen.de doit être reconnecté",
-      "description": "Le canal de lecture volkswagen.de supplémentaire n'a pas pu reprendre sa session (Volkswagen redemande le code à usage unique par e-mail). Les données principales de votre véhicule ne sont pas affectées. Ouvrez les options de cette intégration et relancez « Ajouter un canal de lecture Volkswagen.de » pour rétablir les données vw.de supplémentaires."
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Reconnecter le canal Volkswagen.de",
+            "description": "Le canal de lecture volkswagen.de n'a pas pu reprendre sa session — Volkswagen redemande le code à usage unique par e-mail. Les données principales de votre véhicule ne sont pas affectées. Continuez et vous arriverez directement à la connexion pour ce véhicule ; inutile de chercher vous-même les options de l'intégration."
+          }
+        }
+      }
     },
     "meb_commands_unavailable": {
       "title": "Les commandes à distance ne sont pas disponibles pour cette voiture ({brand})",

@@ -2218,7 +2218,14 @@
     },
     "supplementary_reauth": {
       "title": "Volkswagen.de read channel needs re-login",
-      "description": "The supplementary volkswagen.de read channel couldn't resume its session (Volkswagen wants the email one-time code again). Your vehicle's main data is unaffected. To restore the extra vw.de data, open this integration's options and re-run \"Add a Volkswagen.de read channel\"."
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Re-connect the Volkswagen.de channel",
+            "description": "The volkswagen.de read channel couldn't resume its session — Volkswagen wants the email one-time code again. Your vehicle's main data is unaffected. Continue and you will be taken straight to the login for this car; you do not need to find the integration's settings yourself."
+          }
+        }
+      }
     },
     "meb_commands_unavailable": {
       "title": "Remote commands aren't available for this car ({brand})",

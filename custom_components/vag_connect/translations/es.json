@@ -2210,7 +2210,14 @@
     },
     "supplementary_reauth": {
       "title": "El canal de lectura Volkswagen.de necesita iniciar sesión de nuevo",
-      "description": "El canal de lectura volkswagen.de complementario no pudo reanudar su sesión (Volkswagen vuelve a pedir el código de un solo uso por correo). Los datos principales de tu vehículo no se ven afectados. Abre las opciones de esta integración y vuelve a ejecutar «Añadir un canal de lectura Volkswagen.de» para restaurar los datos adicionales de vw.de."
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Volver a conectar el canal Volkswagen.de",
+            "description": "El canal de lectura volkswagen.de no pudo reanudar su sesión: Volkswagen vuelve a pedir el código de un solo uso por correo. Los datos principales de tu vehículo no se ven afectados. Continúa y llegarás directamente al inicio de sesión de este coche; no tienes que buscar las opciones de la integración."
+          }
+        }
+      }
     },
     "meb_commands_unavailable": {
       "title": "Los comandos remotos no están disponibles para este coche ({brand})",
