@@ -42,6 +42,30 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/)
 
 ## [Unreleased]
 
+## [4.10.0] - 2026-10-04 — Full release / Voll-Release
+
+The stable release that gathers the whole 4.10.0 beta line (b1–b5). The headline is that the
+**volkswagen.de read channel works again**: from the morning of 2 October the site began answering
+only over HTTP/2, which returned an error for every request this integration made, and every sensor
+on that channel went unavailable. It now speaks HTTP/2, and a stored login survives the update.
+
+Alongside that, the beta line brought: a battery charge level for plug-in hybrids on the
+volkswagen.de channel; sixteen more high-voltage, thermal and climate readings for cars on the raw
+portal feed, plus a lot of data the portal was already sending in a shape that got ignored; a sensor
+for the portal's own delivery trigger; the distance since your last fill-up; the climatisation
+duration the portal sends; and fixes so a frozen timestamp from the car no longer makes fresh data
+look days old, an electric car without a reported charge level no longer loses every EV entity, the
+channel no longer has to be re-added after each restart, a read refused for a missing subscription
+says so, cars set to miles no longer get a 1.6× service interval, and the login stops claiming your
+password is wrong when it isn't. The Vehicle Data Scout can also no longer post a VIN into a public
+issue.
+
+Thanks to everyone whose reports and captures drove this line: @Joassens, @eurojojo, @fschulte2812,
+@Ra72xx, @Fishermanjb, @realynot, @dasebi91, @Datendieb, @kalwados, @josie127-neu, @user222008,
+@iansyder8, @DanyZdog93 and @keithellis74.
+
+Four more fixes land on top of the betas:
+
 ### Fixed
 - **A volkswagen.de login that ends on an error page is no longer treated as a successful login.**
   The channel considered itself connected as soon as the final page came from volkswagen.de. But the manufacturer
