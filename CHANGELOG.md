@@ -42,6 +42,8 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/)
 
 ## [Unreleased]
 
+## [4.10.0b5] - 2026-10-04 — The timestamps that were in the file all along, and an error that finally names the page
+
 ### Fixed
 - **The "data is stale" warning stops firing on fresh data, and per-field capture times finally appear (#1688, thanks @Datendieb).**
   He downloaded one of his own portal files and found what the integration had been missing: **every reading in it carries
