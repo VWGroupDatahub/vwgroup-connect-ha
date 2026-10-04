@@ -174,6 +174,12 @@ _TRANSIENT_STATUSES = (400, 404, 410, 429, 500, 502, 503, 504)
 # stable state and return "no data" immediately, so we don't add latency to
 # the common not-set-up case.
 _RETRIABLE_STATUSES = frozenset({500, 502, 503, 504})
+# #465 — statuses that mean the PORTAL is down or throttling us, as opposed to
+# 400/404/410 ("your data request isn't provisioned") and 401/403 ("your session
+# is the problem"). On a hard call these raise UpstreamUnavailableError, so the
+# enumeration caller's re-login branch is bypassed. 429 is included even though
+# it is not retried: being throttled is still not a credentials failure.
+_PORTAL_OUTAGE_STATUSES = frozenset(_RETRIABLE_STATUSES | {429})
 # #465 observability — of the soft-transient statuses, these mean the PORTAL is
 # erroring/throttling (a VW-side outage → portal_health "portal_error"), as opposed
 # to 400/404/410 which mean "the data request isn't provisioned / no delivery yet"
@@ -3793,19 +3799,32 @@ def map_dataset_to_vehicle_data(
     # instead, preferring the odometer's own point (so #529 still holds — the
     # anchor never runs ahead of the reading it describes).
     _newest_point = max(field_ts.values()) if field_ts else None
-    _odo_point = (
-        next((field_ts[k] for k in ("mileage.value", "mileage", "odometer",
-                                    "totalMileage") if k in field_ts), None)
-        if field_ts else None
-    )
+    # The odometer's own capture time, resolved through the leaf the odometer
+    # was ACTUALLY read from rather than through a guessed name list. The first
+    # version of this branch (and the #529 cap below, which it borrowed the list
+    # from) matched four hardcoded names — but the odometer also resolves from
+    # two opaque UUID leaves, and on such a car the list finds nothing. That
+    # mattered: falling back to the newest point would put the anchor ahead of
+    # the mileage it describes, the exact #529 failure this branch claims to
+    # avoid. ``dist_src`` already records the matched leaf, so use it.
+    _odo_leaf = dist_src.get("odometer_km") or ""
+    _odo_point = (field_ts or {}).get(_odo_leaf) if _odo_leaf else None
     _cap_ts_for_staleness = _parse_ts(_cap) if _cap is not None else None
+    # With a surfaced odometer, ONLY its own capture may anchor: if we cannot
+    # identify it, leave the anchor to the existing path rather than advance
+    # past the reading. With no odometer in this snapshot there is no reading to
+    # run ahead of, so the newest point is a legitimate anchor. (This is why the
+    # gate differs from the #529 cap's flat ``d.odometer_km is not None``: that
+    # block caps TO the odometer and is pointless without one, while this one
+    # must avoid overtaking it.)
+    _anchor = _odo_point if d.odometer_km is not None else _newest_point
     if (
         d.last_seen_at is None
+        and _anchor is not None
         and _newest_point is not None
         and (_cap_ts_for_staleness is None
              or _newest_point > _cap_ts_for_staleness)
     ):
-        _anchor = _odo_point if _odo_point is not None else _newest_point
         _anchor_iso = _epoch_or_iso(str(_anchor))
         if _anchor_iso is not None:
             d.last_seen_at = _anchor_iso
@@ -3826,11 +3845,11 @@ def map_dataset_to_vehicle_data(
         # only know the odometer's ts from field_ts (the _walk_fields out-param);
         # without it we fall back to the raw capture (pre-#529 behaviour).
         if field_ts and d.odometer_km is not None:
-            odo_ts = next(
-                (field_ts[k] for k in ("mileage.value", "mileage", "odometer",
-                                       "totalMileage") if k in field_ts),
-                None,
-            )
+            # Resolved through the leaf the odometer was actually read from, not
+            # a name list: it also resolves from two opaque UUID leaves, and on
+            # such a car a four-name list finds nothing and the cap silently
+            # stopped applying — the one thing it exists to prevent.
+            odo_ts = field_ts.get(dist_src.get("odometer_km") or "")
             cap_ts = _parse_ts(_cap)
             if odo_ts is not None and cap_ts is not None and odo_ts < cap_ts:
                 capped = _epoch_or_iso(str(odo_ts))
@@ -5720,6 +5739,25 @@ class EUDataActConnector:
                             # portal outage (portal_error).
                             self._last_soft_status = resp.status
                             return None
+                        # #465 — a HARD call that ends on a portal-side outage
+                        # status is an outage, not a dead session. It used to
+                        # raise AuthenticationError with the status only in the
+                        # message text, and the VIN-enumeration caller catches
+                        # that bare, so a 503 lasting seconds made us refresh
+                        # the token or REPLAY THE PASSWORD, retry, and then
+                        # surface a "session expired" Repair blaming the user's
+                        # login. Same misdiagnosis as the volkswagen.de 502
+                        # (#1709) one channel over. UpstreamUnavailableError
+                        # exists for exactly this — its docstring records people
+                        # reconfiguring their integrations during the 502-storms
+                        # because it "looked like wrong credentials" — and the
+                        # coordinator already treats it as self-healing.
+                        # 401/403 (real session problem) and 404/410 (not
+                        # provisioned) are deliberately untouched.
+                        if not soft and resp.status in _PORTAL_OUTAGE_STATUSES:
+                            raise UpstreamUnavailableError(
+                                resp.status, brand=self._state
+                            )
                         if resp.status == 401:
                             self._debug_dump_auth_state_on_401(
                                 url, eff_headers, resp

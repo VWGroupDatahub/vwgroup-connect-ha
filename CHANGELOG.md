@@ -42,6 +42,46 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/)
 
 ## [Unreleased]
 
+### Fixed
+- **A volkswagen.de login that ends on an error page is no longer treated as a successful login.**
+  The channel considered itself connected as soon as the final page came from volkswagen.de. But the manufacturer
+  serves its own error pages from that same address, and the check above it only rejects outright HTTP failures —
+  so an error page delivered as a normal page passed both. Reconfiguring then looked like it had worked while
+  nothing usable was stored, and the car silently ran without its volkswagen.de data. The rule that the silent
+  background refresh has always applied — an address carrying an error marker is not a login — now applies to the
+  interactive login too. The error marker itself is checked for plausibility before being shown, so an
+  upstream-supplied value cannot ride into a log or a bug report.
+- **A portal outage no longer looks like an expired session, and no longer replays your password (#465).**
+  Listing the cars on your account is the one portal call that has to fail loudly — an empty list would read as
+  "this account has no cars" and end the setup. It did fail loudly, but as an authentication error, and the code
+  that handles that has exactly one move: refresh the token or send the password again, retry, and then raise a
+  "session expired" repair notice. So a portal hiccup lasting seconds sent your credentials back over the wire
+  and then told you your login had gone stale. A server error now reports itself as what it is — the manufacturer's
+  portal being unavailable — which skips the re-login entirely, keeps the message off the "check your password"
+  track, and lets the next poll recover on its own. This is the same misdiagnosis fixed for the volkswagen.de
+  channel in 4.10.0b4, one channel over, and this one sits in the **primary** read path for Volkswagen EU.
+  A genuine 401 or 403 still means your session, and a 404 still means the data request is not provisioned yet;
+  both behave exactly as before.
+- **"Vehicle last reported" could run ahead of the mileage it describes, on cars whose odometer arrives under an opaque key (#1688, #529).**
+  The freshness work in 4.10.0b5 anchors the reported time on the odometer's own capture, so the time can never be newer
+  than the reading it belongs to — otherwise Home Assistant sees the mileage change, sees the time move past it, and can
+  conclude the car was driven when it was not. Finding the odometer's capture time used a list of four field names, but
+  some cars deliver the odometer under one of two opaque identifiers instead. On those cars the list found nothing and
+  the code fell back to the newest timestamp in the file, which is exactly the thing it was written to avoid. It now
+  asks which field the odometer was actually read from, so the two cannot drift apart, and when the answer is unavailable
+  it leaves the time alone instead of guessing. The same four-name list was also used by the older safeguard twenty lines
+  below, which had been silently inactive on those same cars; it is now wired to the same answer.
+- **A Porsche login error could print part of the server's reply into a message you are asked to share.**
+  When a Porsche sign-in or token refresh is rejected, the error shown in Home Assistant names the reason the
+  server gave. That reason was taken from the reply and passed through **unchecked**, so if the server put
+  something long in that field — an echoed request, or a token — it ended up verbatim in a message people paste
+  into bug reports. The helper doing this was written to prevent exactly that and dropped the rest of the reply,
+  but nothing bounded the one field it kept. It is now shared with the other login paths and only ever shows a
+  value that actually looks like an error code; anything else reports as "no usable error code".
+  Two things improve as a side effect: Porsche errors now also read the second field manufacturers use for the
+  reason, which is the one carrying it in most real replies, so previously blank reasons will now be named — and
+  there is one implementation of this for every brand instead of two that disagreed.
+
 ## [4.10.0b5] - 2026-10-04 — The timestamps that were in the file all along, and an error that finally names the page
 
 ### Fixed
