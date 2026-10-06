@@ -47,6 +47,7 @@ from urllib.parse import parse_qs, urljoin, urlparse
 
 from aiohttp import ClientConnectionError, ClientSession, ClientTimeout
 
+from .._util import drop_charge_sentinel, drop_odometer_sentinel
 from ..exceptions import (
     AuthenticationError,
     EmailTwoFactorRequiredError,
@@ -56,7 +57,6 @@ from ..exceptions import (
     TwoFactorRequiredError,
     UpstreamUnavailableError,
 )
-from .._util import drop_charge_sentinel, drop_odometer_sentinel
 from ..models import VehicleData
 from ._data_act_scraper import pick_active_15min_identifier
 
@@ -737,7 +737,7 @@ def _parse_ts(value: Any) -> float | None:
         except ValueError:
             pass
         try:
-            from datetime import datetime  # noqa: PLC0415
+            from datetime import datetime
 
             return datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp()
         except (ValueError, TypeError):
@@ -1599,7 +1599,7 @@ def _epoch_or_iso(raw: str | None) -> str | None:
         f = float(s)
     except (ValueError, TypeError):
         return s  # non-numeric → assume it's already an ISO/string timestamp
-    from datetime import datetime, timezone  # noqa: PLC0415
+    from datetime import datetime, timezone
 
     if f > 1e12:
         f /= 1000.0
@@ -3225,12 +3225,12 @@ def map_dataset_to_vehicle_data(
     # last-wins bare twins (``physical_value_x``/``_y``, ``value_type``) are left as
     # the deliberately-visible generic leaves (they are not reported by the Scout).
     _speed_ratios: dict[str, dict[str, str]] = {}
-    for _srk in fields:
+    for _srk, _srv in fields.items():
         if _srk.startswith("setup_real_speed_ratios.speed_ratio_"):
             used.add(_srk)
             _parts = _srk.split(".")
             if len(_parts) >= 3:
-                _speed_ratios.setdefault(_parts[1], {})[_parts[2]] = fields[_srk]
+                _speed_ratios.setdefault(_parts[1], {})[_parts[2]] = _srv
     if _speed_ratios and not d.speed_ratio_calibration:
         d.speed_ratio_calibration = _speed_ratios
     # state_of_hood — separate source field, same enum family (dict: unsupported
@@ -5092,7 +5092,7 @@ class EUDataActConnector:
     @staticmethod
     def _now_iso() -> str:
         """UTC now as an ISO-8601 string (the TIMESTAMP sensors parse this)."""
-        from datetime import datetime, timezone  # noqa: PLC0415
+        from datetime import datetime, timezone
 
         return datetime.now(timezone.utc).isoformat()
 
