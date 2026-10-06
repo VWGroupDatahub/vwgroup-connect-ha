@@ -41,6 +41,7 @@ import uuid
 import zipfile
 from collections.abc import Callable
 from html.parser import HTMLParser
+from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urljoin, urlparse
 
@@ -142,10 +143,29 @@ _DOWNLOAD_PATH = (
     "/proxy_api/euda-apim/datadelivery/vehicles/{vin}/{identifier}/download"
 )
 
-_USER_AGENT = (
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"
-)
+_MANIFEST_PATH = Path(__file__).parent.parent.parent / "manifest.json"
+
+
+def _integration_version() -> str:
+    try:
+        manifest = json.loads(_MANIFEST_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        _LOGGER.warning(
+            "Could not read integration version from manifest (%s); using 'unknown'",
+            type(exc).__name__,
+        )
+        return "unknown"
+
+    version = manifest.get("version") if isinstance(manifest, dict) else None
+    if not isinstance(version, str) or not version.strip():
+        _LOGGER.warning(
+            "Manifest has no valid integration version; using 'unknown'"
+        )
+        return "unknown"
+    return version.strip()
+
+
+_USER_AGENT = f"HA_vag_connect/{_integration_version()}"
 _NO_CONTENT_SUFFIX = "_no_content_found.zip"
 
 # Junk sentinels the portal uses for state STRINGS (no active session / single-
@@ -5147,13 +5167,9 @@ class EUDataActConnector:
             return None
         cb_url = urljoin(landing_url, callback)
         try:
-            async with self._session.get(
-                cb_url,
-                headers=headers,
-                allow_redirects=True,
-                timeout=ClientTimeout(total=_TIMEOUT_S),
-            ) as resp:
-                result = (str(resp.url), await resp.text(errors="replace"), resp.status)
+            result = await self._request_login_redirects(
+                "GET", cb_url, headers=headers
+            )
         except Exception as exc:  # noqa: BLE001
             # No exc_info: an aiohttp client error's str() can embed the raw
             # callback URL (code / relayState). Log only the exception TYPE. (#1355)
@@ -5170,6 +5186,86 @@ class EUDataActConnector:
             "(followed callback, granted no marketing scopes)"
         )
         return result
+
+    async def _request_login_redirects(
+        self,
+        method: str,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        data: Any = None,
+    ) -> tuple[str, str, int]:
+        """Follow login redirects, stopping on the portal callback response.
+
+        The callback sets the authenticated portal cookie and then redirects to
+        AEM user content. We need the callback response's cookies, not that page.
+        """
+        current_method = method.upper()
+        current_url = url
+        current_headers = dict(headers or {})
+        current_data = data
+        portal_host = urlparse(_PORTAL_BASE).netloc
+
+        for redirect_count in range(11):
+            request = (
+                self._session.post
+                if current_method == "POST"
+                else self._session.get
+            )
+            request_kwargs: dict[str, Any] = {
+                "headers": current_headers,
+                "allow_redirects": False,
+                "timeout": ClientTimeout(total=_TIMEOUT_S),
+            }
+            if current_data is not None:
+                request_kwargs["data"] = current_data
+
+            async with request(current_url, **request_kwargs) as resp:
+                response_url = str(resp.url)
+                response_html = await resp.text(errors="replace")
+                status = resp.status
+                response_headers = getattr(resp, "headers", {})
+                location = response_headers.get("Location", "")
+
+            parsed_response = urlparse(response_url)
+            if (
+                parsed_response.netloc == portal_host
+                and parsed_response.path.rstrip("/") == "/services/callbacklogin"
+            ):
+                _LOGGER.debug(
+                    "EU Data Act portal: stopped redirect following at "
+                    "callbacklogin after receiving its response"
+                )
+                return response_url, response_html, status
+
+            if status not in {301, 302, 303, 307, 308} or not location:
+                return response_url, response_html, status
+            if redirect_count == 10:
+                raise AuthenticationError(
+                    "EU Data Act portal: login exceeded redirect limit"
+                )
+
+            next_url = urljoin(response_url, location)
+            next_host = urlparse(next_url).netloc
+            if next_host != parsed_response.netloc:
+                current_headers = {
+                    key: value
+                    for key, value in current_headers.items()
+                    if key.lower() not in {"authorization", "cookie"}
+                }
+            current_headers = {
+                key: value
+                for key, value in current_headers.items()
+                if key.lower() != "referer"
+            }
+            current_headers["Referer"] = response_url
+
+            if status in {301, 302, 303} and current_method != "HEAD":
+                current_method = "GET"
+                current_data = None
+            current_url = next_url
+
+        raise AuthenticationError("EU Data Act portal: login redirect limit reached")
 
     @staticmethod
     def _is_consent_landing(landing_url: str, landing_html: str) -> bool:
@@ -5256,14 +5352,14 @@ class EUDataActConnector:
         # _resolve_action (it strips the query → 400 generalErrorBranded).
         accept_action = urljoin(consent_url, action) if action else consent_url
         try:
-            async with self._session.post(
-                accept_action, data=pairs,
-                headers={"User-Agent": _USER_AGENT, "Referer": consent_url},
-                allow_redirects=True, timeout=ClientTimeout(total=_TIMEOUT_S),
-            ) as resp:
-                new_landing = str(resp.url)
-                new_html = await resp.text(errors="replace")
-                new_status = resp.status
+            new_landing, new_html, new_status = (
+                await self._request_login_redirects(
+                    "POST",
+                    accept_action,
+                    data=pairs,
+                    headers={"User-Agent": _USER_AGENT, "Referer": consent_url},
+                )
+            )
         except Exception as exc:  # noqa: BLE001 — best-effort accept
             _LOGGER.debug(
                 "EU Data Act portal: consent accept POST failed (%s) — "
@@ -5326,14 +5422,14 @@ class EUDataActConnector:
         # _resolve_action (it strips the query → 400 generalErrorBranded).
         accept_action = urljoin(terms_url, action) if action else terms_url
         try:
-            async with self._session.post(
-                accept_action, data=pairs,
-                headers={"User-Agent": _USER_AGENT, "Referer": terms_url},
-                allow_redirects=True, timeout=ClientTimeout(total=_TIMEOUT_S),
-            ) as resp:
-                new_landing = str(resp.url)
-                new_html = await resp.text(errors="replace")
-                new_status = resp.status
+            new_landing, new_html, new_status = (
+                await self._request_login_redirects(
+                    "POST",
+                    accept_action,
+                    data=pairs,
+                    headers={"User-Agent": _USER_AGENT, "Referer": terms_url},
+                )
+            )
         except Exception as exc:  # noqa: BLE001 — best-effort accept
             _LOGGER.debug(
                 "EU Data Act portal: T&C accept POST failed (%s) — leaving to "
@@ -5379,22 +5475,6 @@ class EUDataActConnector:
             self.logged_in = True
             return
         headers = {"User-Agent": _USER_AGENT}
-
-        # 0. Prime portal session cookies (AEM load-balancer state).
-        try:
-            async with self._session.get(
-                f"{_PORTAL_BASE}/", headers=headers,
-                timeout=ClientTimeout(total=_TIMEOUT_S),
-            ):
-                pass
-        except Exception as exc:  # noqa: BLE001
-            # Class only, never str(exc) — an aiohttp error's message echoes the
-            # request URL. (Here it is the static portal base, but keep the sweep
-            # posture uniform so no future URL change re-opens a leak.)
-            _LOGGER.debug(
-                "EU Data Act: priming GET failed (ignored): %s",
-                type(exc).__name__,
-            )
 
         # 1. Start OIDC directly at the IDP (portal's own servlet 500s for
         #    non-browser clients). response_type=code; portal does the
@@ -5446,14 +5526,12 @@ class EUDataActConnector:
         # param and the IDP rejects it with HTTP 400. _resolve_action
         # strips the query AND guards the doubled-/login/login/ trap.
         authenticate_action = _resolve_action(authenticate_url, action2)
-        async with self._session.post(
-            authenticate_action, data=fields2,
+        landing, landing_html, status = await self._request_login_redirects(
+            "POST",
+            authenticate_action,
+            data=fields2,
             headers={**headers, "Referer": authenticate_url},
-            allow_redirects=True, timeout=ClientTimeout(total=_TIMEOUT_S),
-        ) as resp:
-            landing = str(resp.url)
-            landing_html = await resp.text(errors="replace")
-            status = resp.status
+        )
 
         # 3b. (#527, v2.15.5) — generic OAuth/IDP consent grant page. After
         # correct credentials the IDP can interject a server-rendered consent
