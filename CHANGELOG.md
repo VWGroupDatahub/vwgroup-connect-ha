@@ -42,6 +42,12 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/)
 
 ## [Unreleased]
 
+### Added
+- **A local live-login and HTTP-trace runner for the EU Data Act portal.** `scripts/euda_login.py` uses `VAG_EMAIL` and `VAG_PASSWORD` from the local environment, logs sanitized response metadata without response bodies, and masks VIN output. Thanks @VWGroupDatahub.
+
+### Changed
+- **EU Data Act login stops after the portal callback sets its session cookie.** It no longer follows the callback redirect to the unnecessary AEM user-content page; consent, legal-terms and optional marketing-consent handling remain in place. The connector's User-Agent now includes the version from `manifest.json`, with an `unknown` fallback. Thanks @VWGroupDatahub.
+
 ### Docs
 - Internal note only, no user-visible change: the device-grant source file still claimed Audi's app
   client returned `200` from Volkswagen's device-code endpoint. That stopped being true when VW walled
@@ -4594,4 +4600,3 @@ First release candidate for v2.8.0. Bundles the five action items from the 2026-
 - Erste Version: VW EU, Audi, Škoda, SEAT, CUPRA
 - Sensoren: Akkustand, Reichweite, Kilometerstand, GPS, Türen, Fenster, Klimatisierung,
 - Services: lock, unlock, start/stop Klimatisierung, flash, wake, refresh
-
