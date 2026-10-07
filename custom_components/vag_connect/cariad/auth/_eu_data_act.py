@@ -41,7 +41,6 @@ import uuid
 import zipfile
 from collections.abc import Callable
 from html.parser import HTMLParser
-from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urljoin, urlparse
 
@@ -143,29 +142,46 @@ _DOWNLOAD_PATH = (
     "/proxy_api/euda-apim/datadelivery/vehicles/{vin}/{identifier}/download"
 )
 
-_MANIFEST_PATH = Path(__file__).parent.parent.parent / "manifest.json"
+# The sign-in steps below talk to the IDP, which is a browser flow: v2.10.x
+# (#388/#393) the WAF in front of it started answering 403 to a non-browser
+# agent, and a plain browser string is what fixed it. That is why this one
+# stays as it is.
+_USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"
+)
+
+# #1740 — the portal's operator asked that requests to the PORTAL domain carry
+# a dedicated agent, so they can attribute traffic and report problems back to
+# the project causing them. That is a different set of requests from the login
+# steps above: it is _get_json (vehicles, metadata, delivery list, relation)
+# and the dataset download, which until now went out under the HTTP library's
+# default name.
+#
+# The version is handed in once at setup rather than read from manifest.json
+# here: this module is imported from inside coroutines, so a file read at
+# import time would be I/O on the event loop.
+_PORTAL_UA_PRODUCT = "HA_vag_connect"
+_portal_ua_version: str = ""
 
 
-def _integration_version() -> str:
-    try:
-        manifest = json.loads(_MANIFEST_PATH.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        _LOGGER.warning(
-            "Could not read integration version from manifest (%s); using 'unknown'",
-            type(exc).__name__,
-        )
-        return "unknown"
+def set_integration_version(version: str) -> None:
+    """Record the integration version for the portal user-agent.
 
-    version = manifest.get("version") if isinstance(manifest, dict) else None
-    if not isinstance(version, str) or not version.strip():
-        _LOGGER.warning(
-            "Manifest has no valid integration version; using 'unknown'"
-        )
-        return "unknown"
-    return version.strip()
+    Called once from the coordinator at setup. Empty or missing simply omits
+    the version from the agent; it never blocks or fails a request.
+    """
+    global _portal_ua_version
+    _portal_ua_version = (version or "").strip()
 
 
-_USER_AGENT = f"HA_vag_connect/{_integration_version()}"
+def _portal_user_agent() -> str:
+    """``HA_vag_connect/<version>``, or the bare product when unknown."""
+    return (
+        f"{_PORTAL_UA_PRODUCT}/{_portal_ua_version}"
+        if _portal_ua_version
+        else _PORTAL_UA_PRODUCT
+    )
 _NO_CONTENT_SUFFIX = "_no_content_found.zip"
 # The portal hop that sets the authenticated session cookie. Everything
 # after it is AEM content the login does not need.
@@ -5889,6 +5905,8 @@ class EUDataActConnector:
         # JSON proxy_api call (vehicles list, metadata, datadelivery list,
         # relation) since they all funnel through here. No-op in cookie mode.
         eff_headers = dict(headers or {})
+        # #1740 — portal-domain traffic identifies itself.
+        eff_headers.setdefault("User-Agent", _portal_user_agent())
         if self._bearer:
             eff_headers["Authorization"] = f"Bearer {self._bearer}"
         # v2.13.1 — the portal is flaky: transient 5xx come and go within
@@ -6002,7 +6020,11 @@ class EUDataActConnector:
         (v2.13.0) is merged in without clobbering the filename/type headers the
         download endpoint requires.
         """
-        dl_headers = {"filename": name, "type": request_type}
+        dl_headers = {
+            "filename": name,
+            "type": request_type,
+            "User-Agent": _portal_user_agent(),  # #1740
+        }
         if self._bearer:
             dl_headers["Authorization"] = f"Bearer {self._bearer}"
         try:

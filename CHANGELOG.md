@@ -42,6 +42,19 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/)
 
 ## [Unreleased]
 
+### Geändert / Changed
+- **Requests to the EU Data Act portal now say who they are, and the login makes one fewer
+  round trip (#1740, thanks @VWGroupDatahub).** The portal's operator asked for a dedicated
+  user-agent on requests to their domain so they can tell traffic apart and report problems
+  back to whoever is causing them — our data requests had been going out under the HTTP
+  library's default name. They also confirmed the priming request we made before signing in
+  was unnecessary, because the load balancer hands over the cookie it was there to collect
+  on the redirect from the login server anyway. Nothing changes for you; signing in is one
+  request shorter.
+- Internal, no user-visible change: the dedicated agent goes on portal-domain requests only.
+  The sign-in steps keep the browser agent they have carried since v2.10.x, when the WAF in
+  front of the login server started answering `403` to a non-browser one (#388, #393).
+
 ## [4.11.1] - 2026-10-06 — The Fix button actually fixes / Der Fix-Knopf tut jetzt was er sagt
 
 ### Behoben / Fixed
@@ -4631,3 +4644,4 @@ First release candidate for v2.8.0. Bundles the five action items from the 2026-
 - Erste Version: VW EU, Audi, Škoda, SEAT, CUPRA
 - Sensoren: Akkustand, Reichweite, Kilometerstand, GPS, Türen, Fenster, Klimatisierung,
 - Services: lock, unlock, start/stop Klimatisierung, flash, wake, refresh
+
