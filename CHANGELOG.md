@@ -42,11 +42,42 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/)
 
 ## [Unreleased]
 
-### Added
-- **A local live-login and HTTP-trace runner for the EU Data Act portal.** `scripts/euda_login.py` uses `VAG_EMAIL` and `VAG_PASSWORD` from the local environment, logs sanitized response metadata without response bodies, and masks VIN output. Thanks @VWGroupDatahub.
+## [4.11.1] - 2026-10-06 — The Fix button actually fixes / Der Fix-Knopf tut jetzt was er sagt
 
-### Changed
-- **EU Data Act login stops after the portal callback sets its session cookie.** It no longer follows the callback redirect to the unnecessary AEM user-content page; consent, legal-terms and optional marketing-consent handling remain in place. The connector's User-Agent now includes the version from `manifest.json`, with an `unknown` fallback. Thanks @VWGroupDatahub.
+### Behoben / Fixed
+- **The "Volkswagen.de channel needs re-login" Fix button now actually logs you in (#1717, thanks @fschulte2812).**
+  It was shipped broken in 4.11.0: pressing Fix closed the dialog, made the notice disappear and did nothing else —
+  no login appeared and the channel stayed down. @fschulte2812 found it and read the code to work out why. The repair
+  was handing the job to a settings screen that Home Assistant never shows when something other than you opens it,
+  and then marking itself done regardless. The login now happens inside the notice itself: e-mail and password, then
+  the one-time code if Volkswagen asks for it, and the notice only clears once you are actually signed in again.
+
+### Geändert / Changed
+- **The Volkswagen.de Data Act login stops one page earlier, and is a little quicker for it
+  (#1740, thanks @VWGroupDatahub).** Signing in used to end with a request for a portal content page
+  that the integration reads nothing from — the page before it is the one that hands out the
+  session. That last request is gone. You will not see a difference beyond a slightly faster
+  login; it matters because the portal's own team told us the hop is about to change, and they
+  sent the fix before it did. Volkswagen's consent, legal-terms and optional marketing-consent
+  pages are handled exactly as before.
+- Internal, no user-visible change: following that chain by hand means the integration now
+  applies the rules a browser used to apply for it. The ones worth naming: a `303` does not
+  re-send your password to the next address, a redirect that leaves the host drops any
+  credential header instead of carrying it along, a redirect off `https` is not followed at
+  all, and a chain that never ends gives up after ten hops instead of spinning.
+- **A Vehicle Data Scout report now says which version of the integration produced it
+  (#1736, #1738).** It always had room for that line and never filled it, so every report
+  that reached me started with me asking you which version you were on — three times in the
+  past week. In one of those the field had been mapped thirty-seven minutes before the report
+  was filed, which nobody could tell from the report itself. The same line is now on the error
+  reporter's output. Nothing about what is collected changes: same fields, same masking, no
+  raw API response.
+- **The trip-computer distance since the last fill-up is a normal sensor now, visible without
+  hunting for it (#1655, thanks @fschulte2812).** It arrived as a hidden diagnostic entity
+  while the two memories next to it — total distance and last journey — were ordinary sensors,
+  which is why @fschulte2812 went looking and could not find it. That caution was for a value
+  nobody had seen on a real car yet; several cars have reported it since. If you enabled it by
+  hand, nothing changes for you.
 
 ### Docs
 - Internal note only, no user-visible change: the device-grant source file still claimed Audi's app
